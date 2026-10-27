@@ -1,0 +1,12 @@
+import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+const root = process.cwd();
+const dist = path.join(root, 'dist');
+const target = path.join(root, 'static');
+await mkdir(target, { recursive: true });
+await cp(dist, target, { recursive: true, force: true });
+const indexPath = path.join(target, 'index.html');
+let html = await readFile(indexPath, 'utf8');
+html = html.replaceAll('src="/app/static/', 'src="/app/static/').replaceAll('href="/app/static/', 'href="/app/static/');
+await writeFile(indexPath, html);
+console.log('Copied Vite production build to ./static for Streamlit static serving.');
