@@ -1,22 +1,25 @@
-import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 
 const root = process.cwd();
 const dist = path.join(root, 'dist');
-const target = path.join(root, 'static');
-const component = path.join(root, 'streamlit_component', 'frontend');
+const staticDir = path.join(root, 'static');
+const componentDir = path.join(root, 'streamlit_component', 'frontend');
 
-await mkdir(target, { recursive: true });
-await mkdir(component, { recursive: true });
+await mkdir(staticDir, { recursive: true });
+await mkdir(componentDir, { recursive: true });
 
-await cp(dist, target, { recursive: true, force: true });
-await cp(dist, component, { recursive: true, force: true });
+await cp(dist, staticDir, { recursive: true, force: true });
 
-for (const folder of [target, component]) {
-  const indexPath = path.join(folder, 'index.html');
-  let html = await readFile(indexPath, 'utf8');
-  html = html.replaceAll('/app/static/', './');
-  await writeFile(indexPath, html);
-}
+const componentAssets = path.join(componentDir, 'assets');
+await rm(componentAssets, { recursive: true, force: true });
+await cp(path.join(dist, 'assets'), componentAssets, {
+  recursive: true,
+  force: true
+});
 
-console.log('Prepared static and component frontend assets.');
+let html = await readFile(path.join(dist, 'index.html'), 'utf8');
+html = html.replaceAll('/app/static/', './');
+await writeFile(path.join(componentDir, 'app.html'), html);
+
+console.log('Streamlit frontend build prepared.');
