@@ -13,15 +13,16 @@
   },
   "dependencies": {
     "@andresaya/edge-tts": "^1.9.1",
-    "@ffmpeg/ffmpeg": "^0.12.10",
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/core": "^7.4.3",
     "@ffmpeg/core": "0.12.6",
+    "@ffmpeg/ffmpeg": "^0.12.10",
     "@ffmpeg/util": "^0.12.1",
     "mediabunny": "^1.62.1",
-    "@capacitor/android": "^7.4.3",
-    "@capacitor/core": "^7.4.3"
+    "mpg123-decoder": "^1.0.3"
   },
   "devDependencies": {
-    "vite": "^6.1.0",
-    "@capacitor/cli": "^7.4.3"
+    "@capacitor/cli": "^7.4.3",
+    "vite": "^6.1.0"
   }
 }

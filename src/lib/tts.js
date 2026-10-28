@@ -101,15 +101,43 @@ async function synthesize(text, voice, rate, signal, leadIn) {
   throw lastError;
 }
 
-function decode(arrayBuffer) {
+async function decode(arrayBuffer) {
   const Ctx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
   if (!Ctx) throw new Error('ဒီ browser မှာ OfflineAudioContext မရပါ။ Chrome နဲ့ ပြန်စမ်းပါ။');
+
   const ctx = new Ctx(1, 1, SAMPLE_RATE);
-  return new Promise((resolve, reject) => {
-    const copy = arrayBuffer.slice(0);
-    const result = ctx.decodeAudioData(copy, resolve, reject);
-    if (result?.then) result.then(resolve, reject);
-  });
+
+  try {
+    return await ctx.decodeAudioData(arrayBuffer.slice(0));
+  } catch (nativeError) {
+    let decoder;
+    try {
+      const { MPEGDecoder } = await import('mpg123-decoder');
+      decoder = new MPEGDecoder();
+      await decoder.ready;
+
+      const result = decoder.decode(new Uint8Array(arrayBuffer.slice(0)));
+      if (!result.samplesDecoded || !result.channelData?.length) {
+        throw new Error('MP3 ထဲမှာ အသံ sample မတွေ့ပါ။');
+      }
+
+      const buffer = ctx.createBuffer(
+        result.channelData.length,
+        result.samplesDecoded,
+        result.sampleRate
+      );
+
+      result.channelData.forEach((channel, index) => {
+        buffer.copyToChannel(channel.subarray(0, result.samplesDecoded), index);
+      });
+
+      return buffer;
+    } catch (fallbackError) {
+      throw new Error(`MP3 decode မအောင်မြင်ပါ: ${fallbackError.message || nativeError.message}`);
+    } finally {
+      decoder?.free();
+    }
+  }
 }
 
 function encodeWav(samples) {
