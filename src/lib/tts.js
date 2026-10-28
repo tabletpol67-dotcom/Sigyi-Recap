@@ -103,24 +103,40 @@ async function synthesize(text, voice, rate, signal, leadIn) {
 
 async function decode(arrayBuffer) {
   const Ctx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-  if (!Ctx) throw new Error('ဒီ browser မှာ OfflineAudioContext မရပါ။ Chrome နဲ့ ပြန်စမ်းပါ။');
+  if (!Ctx) {
+    throw new Error('ဒီ browser မှာ OfflineAudioContext မရပါ။ Chrome နဲ့ ပြန်စမ်းပါ။');
+  }
 
-  const ctx = new Ctx(1, 1, SAMPLE_RATE);
+  const bytes = new Uint8Array(arrayBuffer);
+  const isWav =
+    bytes.length >= 12 &&
+    String.fromCharCode(...bytes.slice(0, 4)) === 'RIFF' &&
+    String.fromCharCode(...bytes.slice(8, 12)) === 'WAVE';
 
   try {
+    const ctx = new Ctx(1, 1, SAMPLE_RATE);
     return await ctx.decodeAudioData(arrayBuffer.slice(0));
   } catch (nativeError) {
+    if (isWav) {
+      throw new Error(`WAV အသံဖိုင်ကို browser က မဖတ်နိုင်ပါ: ${nativeError.message}`);
+    }
+
     let decoder;
     try {
       const { MPEGDecoder } = await import('mpg123-decoder');
       decoder = new MPEGDecoder();
       await decoder.ready;
 
-      const result = decoder.decode(new Uint8Array(arrayBuffer.slice(0)));
+      const result = decoder.decode(bytes);
       if (!result.samplesDecoded || !result.channelData?.length) {
         throw new Error('MP3 ထဲမှာ အသံ sample မတွေ့ပါ။');
       }
 
+      const ctx = new Ctx(
+        result.channelData.length,
+        result.samplesDecoded,
+        result.sampleRate
+      );
       const buffer = ctx.createBuffer(
         result.channelData.length,
         result.samplesDecoded,
@@ -133,7 +149,7 @@ async function decode(arrayBuffer) {
 
       return buffer;
     } catch (fallbackError) {
-      throw new Error(`MP3 decode မအောင်မြင်ပါ: ${fallbackError.message || nativeError.message}`);
+      throw new Error(`အသံ decode မအောင်မြင်ပါ: ${fallbackError.message || nativeError.message}`);
     } finally {
       decoder?.free();
     }

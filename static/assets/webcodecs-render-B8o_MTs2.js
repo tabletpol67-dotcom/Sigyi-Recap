@@ -1,4 +1,4 @@
-import{e as Ni,l as Vi,r as Ui}from"./index-JcadinnG.js";/*!
+import{e as Ni,l as Vi,r as Ui}from"./index-C_vDNKmm.js";/*!
  * Copyright (c) 2026-present, Vanilagy and contributors
  *
  * This Source Code Form is subject to the terms of the Mozilla Public
