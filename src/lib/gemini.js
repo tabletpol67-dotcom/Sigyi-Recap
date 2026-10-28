@@ -1,6 +1,6 @@
 // Gemini: video -> accurate timed transcript + Burmese recap (one request)
 const BASE = 'https://generativelanguage.googleapis.com';
-export const MODELS = ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-2.5-flash'];
+export const MODELS = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash'];
 const INLINE_LIMIT = 18 * 1024 * 1024; // small videos: send inline (no upload / poll / delete = faster)
 
 const sleep = (ms, signal) => new Promise((resolve, reject) => {
