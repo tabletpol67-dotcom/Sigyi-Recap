@@ -10,6 +10,7 @@ import asyncio
 import base64
 import hashlib
 import tempfile
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -40,7 +41,7 @@ if not UI.exists():
 
 
 def edge_tts_mp3(text: str, voice: str, rate: float) -> bytes:
-    """Return synthesized MP3 bytes; browser decodes it and builds the WAV timeline."""
+    """Generate Edge TTS MP3 and convert it to browser-friendly WAV."""
     import edge_tts
 
     voice_map = {
@@ -52,17 +53,36 @@ def edge_tts_mp3(text: str, voice: str, rate: float) -> bytes:
     rate_string = f"{percent:+d}%"
 
     async def synthesize() -> bytes:
-        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as handle:
-            temp_path = Path(handle.name)
-        try:
-            communicate = edge_tts.Communicate(text=text, voice=selected_voice, rate=rate_string)
-            await communicate.save(str(temp_path))
-            data = temp_path.read_bytes()
-            if len(data) < 1000:
-                raise RuntimeError("Edge TTS က အသံဒေတာ မပြန်ပေးပါ။")
+        with tempfile.TemporaryDirectory() as folder:
+            mp3_path = Path(folder) / "voice.mp3"
+            wav_path = Path(folder) / "voice.wav"
+
+            communicate = edge_tts.Communicate(
+                text=text, voice=selected_voice, rate=rate_string
+            )
+            await communicate.save(str(mp3_path))
+
+            if not mp3_path.exists() or mp3_path.stat().st_size < 1000:
+                raise RuntimeError("Edge TTS က MP3 အသံဒေတာ မပြန်ပေးပါ။")
+
+            result = subprocess.run(
+                [
+                    "ffmpeg", "-y", "-loglevel", "error",
+                    "-i", str(mp3_path),
+                    "-ac", "1", "-ar", "24000",
+                    "-c:a", "pcm_s16le", str(wav_path),
+                ],
+                capture_output=True, text=True, timeout=60,
+            )
+            if result.returncode != 0:
+                raise RuntimeError(
+                    "MP3 မှ WAV ပြောင်းမရပါ: " + (result.stderr[-800:] or "FFmpeg error")
+                )
+
+            data = wav_path.read_bytes()
+            if len(data) < 1000 or data[:4] != b"RIFF" or data[8:12] != b"WAVE":
+                raise RuntimeError("WAV အသံဖိုင် မမှန်ပါ။")
             return data
-        finally:
-            temp_path.unlink(missing_ok=True)
 
     return asyncio.run(synthesize())
 
@@ -87,7 +107,7 @@ if isinstance(request, dict) and request.get("kind") == "tts":
             st.session_state.sigyi_tts_response = {
                 "requestId": request_id,
                 "ok": True,
-                "mimeType": "audio/mpeg",
+                "mimeType": "audio/wav",
                 "audioBase64": base64.b64encode(audio).decode("ascii"),
             }
         except Exception as exc:  # return the failure to the UI instead of crashing the app
